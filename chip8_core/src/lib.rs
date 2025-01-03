@@ -36,7 +36,7 @@ pub struct Emulator {
     delay_timer: u8,
     sound_timer: u8,
     stack: [u16; STACK_SIZE],
-    screen: [[bool; SCREEN_WIDTH]; SCREEN_HEIGHT],
+    pub screen: [[bool; SCREEN_WIDTH]; SCREEN_HEIGHT],
 }
 
 impl Emulator {
