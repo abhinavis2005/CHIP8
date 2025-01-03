@@ -9,7 +9,7 @@ fn main() {
         eprintln!("Usage: cargo run [full_path_to_game_file]");
         process::exit(1);
     }
-    let buffer = fs::read(&args[1]).expect("Error reading the file");
+    let buffer  = fs::read(&args[1]).expect("Error reading the file");
 
     // Emulator Initialisation and loading ROM into RAM
     let mut chip8 = Emulator::new();
