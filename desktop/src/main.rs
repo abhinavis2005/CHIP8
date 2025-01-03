@@ -1,6 +1,6 @@
 use chip8_core::Emulator;
 
-use std::{error::Error, io};
+use std::{error::Error, io, time::Duration};
 
 use ratatui::{
     backend::CrosstermBackend,
@@ -19,16 +19,20 @@ use std::process;
 use std::fs;
 fn main()-> Result<(), Box<dyn Error>>{
     // Receiving the ROM file from argument
+    let mut chip8 = Emulator::new();
     let args: Vec<String> = std::env::args().collect();
     if args.len() != 2 {
-        eprintln!("Usage: cargo run [full_path_to_game_file]");
-        process::exit(1);
+        // eprintln!("Usage: cargo run [full_path_to_game_file]");
+        // process::exit(1);
+        let path = "/home/abhinav/Documents/CHIP8/desktop/test_opcode.ch8";
+        let buffer  = fs::read(path).expect("Error reading the file");
+        chip8.load_to_ram(&buffer);
     }
-    let buffer  = fs::read(&args[1]).expect("Error reading the file");
-
+    else{
+        let buffer  = fs::read(&args[1]).expect("Error reading the file");
+        chip8.load_to_ram(&buffer);
+    }
     // Emulator Initialisation and loading ROM into RAM
-    let mut chip8 = Emulator::new();
-    chip8.load_to_ram(&buffer);
    
     enable_raw_mode()?;
     let mut stderr = io::stderr();
@@ -37,7 +41,7 @@ fn main()-> Result<(), Box<dyn Error>>{
     let mut terminal = Terminal::new(backend)?;
 
 
-    let _ = run_app(& mut terminal, &chip8.screen);
+    let _ = run_app(& mut terminal, chip8);
 
     disable_raw_mode()?;
     execute!(
@@ -72,7 +76,7 @@ fn ui(frame: &mut Frame, screen: &[[bool; chip8_core::SCREEN_WIDTH]; chip8_core:
 
                 // Use a block or any widget to represent the lit pixels
                 frame.render_widget(
-                    Paragraph::new("x")
+                    Paragraph::new("█")
                         .style(Style::default().fg(Color::White)),  // Adjust color if needed
                     rect,
                 );
@@ -81,17 +85,24 @@ fn ui(frame: &mut Frame, screen: &[[bool; chip8_core::SCREEN_WIDTH]; chip8_core:
     }
 }
 
-fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, screen: &[[bool; chip8_core::SCREEN_WIDTH];chip8_core::SCREEN_HEIGHT]) -> io::Result<bool>{
+fn run_app<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, mut emulator: chip8_core::Emulator) -> io::Result<bool>{
     loop{
-        terminal.draw(|f| ui(f, screen))?;
         
-        if let Event::Key(key) = event::read()? {
-            if key.kind == event::KeyEventKind::Release{
-                continue;
-            }
-            match key.code {
-                KeyCode::Char('q') => break Ok(true),
-                _ => {}
+        emulator.tick();
+        terminal.draw(|f| ui(f, &emulator.screen))?;
+        
+        if event::poll(Duration::from_millis(1))?{
+
+            
+            if let Event::Key(key) = event::read()? {
+                if key.kind == event::KeyEventKind::Release{
+                    continue;
+                }
+                match key.code {
+                    KeyCode::Char('q') => {
+                        break Ok(true)},
+                    _ => {}
+                }
             }
         }
     }

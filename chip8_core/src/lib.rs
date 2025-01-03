@@ -1,3 +1,6 @@
+use std::arch::x86_64;
+use std::process;
+
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
 pub const STACK_SIZE: usize = 16;
@@ -29,10 +32,10 @@ const FONT: [u8; FONT_SIZE] = [
 ];
 
 pub struct Emulator {
-    pc: u16,
+    pub pc: u16,
     ram: [u8; RAM_SIZE],
     v: [u8; NUM_REGISTERS],
-    i: u16,
+    I: u16,
     delay_timer: u8,
     sound_timer: u8,
     stack: [u16; STACK_SIZE],
@@ -42,10 +45,10 @@ pub struct Emulator {
 impl Emulator {
     pub fn new() -> Self {
         let mut emulator = Self {
-            pc: 0,
+            pc: 0x200,
             ram: [0; RAM_SIZE],
             v: [0; NUM_REGISTERS],
-            i: 0,
+            I: 0,
             delay_timer: 0,
             sound_timer: 0,
             stack: [0; STACK_SIZE],
@@ -63,5 +66,67 @@ impl Emulator {
             panic!("RAM size exceeded");
         }
         self.ram[START_ADDRESS..end_address].copy_from_slice(opcodes);
+    }
+    
+    fn fetch(&mut self) -> u16{
+        let op: u16= ((self.ram[self.pc as usize] as u16) << 8 )| (self.ram[self.pc as usize + 1] as u16);  
+        
+        op
+    }
+    
+    fn execute(&mut self, op: u16){
+        let d1: u8 = ((op & 0xF000) >> 12) as u8;
+        let d2: u8 = ((op & 0x0F00) >> 8) as u8;
+        let d3: u8 = ((op & 0x00F0) >> 4) as u8;
+        let d4: u8 = (op & 0x000F) as u8;
+
+        match (d1, d2, d3, d4) {
+            (0, 0, 0xE, 0) => self.screen = [[false; SCREEN_WIDTH]; SCREEN_HEIGHT],
+            (1, _, _, _) => {
+                let addr: u16 = op & 0x0FFF;
+                self.pc = addr;
+            }
+            (6, x, _, _) => {
+                let val = (op & 0x00FF) as u8;
+                self.v[x as usize] = val;
+            }
+            (7, x, _, _) => {
+                let val = (op & 0x00FF) as u8;
+                self.v[x as usize] += val;
+            }
+            (0xA, _, _, _) => {
+                let addr = op & 0x0FFF;
+                self.I = addr;
+            }
+            (0xD, x, y, n) => {
+                let x = self.v[x as usize] as usize;
+                let y = self.v[y as usize] as usize;
+                let height = n as usize;
+                self.v[0xF] = 0;
+                for yline in 0..height {
+                    let pixel = self.ram[self.I as usize + yline];
+                    for xline in 0..8 {
+                        if (pixel & (0x80 >> xline)) != 0 {
+                            if self.screen[(y + yline) % SCREEN_HEIGHT][(x + xline) % SCREEN_WIDTH] {
+                                self.v[0xF] = 1;
+                            }
+                            self.screen[(y + yline) % SCREEN_HEIGHT][(x + xline) % SCREEN_WIDTH] ^= true;
+                        }
+                    }
+                } 
+                
+            }
+            (_, _, _, _) => {
+                process::exit(1);
+            },
+        }
+    }
+
+    pub fn tick(&mut self){
+        let op: u16 = self.fetch();
+        self.pc+=2;
+        
+        self.execute(op);
+
     }
 }
