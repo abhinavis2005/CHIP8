@@ -14,7 +14,11 @@ use ratatui::{
     style::{Color, Style},
     widgets::Paragraph,
 };
+use std::collections::HashMap;
 use std::fs;
+use std::fs::OpenOptions;
+use std::io::Write;
+
 fn main() -> Result<(), Box<dyn Error>> {
     // Receiving the ROM file from argument
     let mut chip8 = Emulator::new();
@@ -31,6 +35,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     // Emulator Initialisation and loading ROM into RAM
 
+    //enabling verbose mode
+    chip8.verbose = true;
     enable_raw_mode()?;
     let mut stderr = io::stderr();
     execute!(stderr, EnterAlternateScreen, EnableMouseCapture)?;
@@ -85,6 +91,26 @@ fn run_app<B: ratatui::backend::Backend>(
     let max_terminal_width = chip8_core::SCREEN_WIDTH as u16;
     let max_terminal_height = chip8_core::SCREEN_HEIGHT as u16;
 
+    let key_mapping: HashMap<KeyCode, usize> = [
+        (KeyCode::Char('1'), 0),
+        (KeyCode::Char('2'), 1),
+        (KeyCode::Char('3'), 2),
+        (KeyCode::Char('4'), 3),
+        (KeyCode::Char('q'), 4),
+        (KeyCode::Char('w'), 5),
+        (KeyCode::Char('e'), 6),
+        (KeyCode::Char('r'), 7),
+        (KeyCode::Char('a'), 8),
+        (KeyCode::Char('s'), 9),
+        (KeyCode::Char('d'), 10),
+        (KeyCode::Char('f'), 11),
+        (KeyCode::Char('z'), 12),
+        (KeyCode::Char('x'), 13),
+        (KeyCode::Char('c'), 14),
+        (KeyCode::Char('v'), 15),
+    ]
+    .into();
+
     let size = terminal.size()?;
     if size.width < max_terminal_width || size.height < max_terminal_height {
         terminal.draw(|f| {
@@ -95,26 +121,38 @@ fn run_app<B: ratatui::backend::Backend>(
         })?;
         loop {
             if let Event::Resize(width, height) = event::read()? {
-                    if width >= max_terminal_width && height >= max_terminal_height {
-                        break;
-                    }
+                if width >= max_terminal_width && height >= max_terminal_height {
+                    break;
+                }
             }
-            
         }
     }
 
     loop {
         emulator.tick();
         terminal.draw(|f| ui(f, &emulator.screen))?;
+        emulator.keypad = [false; chip8_core::KEYPAD_SIZE * chip8_core::KEYPAD_SIZE];
 
         if event::poll(Duration::from_millis(1))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind == event::KeyEventKind::Release {
                     continue;
                 }
+                if emulator.verbose {
+                    let mut file = OpenOptions::new()
+                        .write(true)
+                        .append(true)
+                        .create(true)
+                        .open("log.txt")?;
+                    writeln!(file, "{:?} press detected", key.code)?;
+                }
                 match key.code {
-                    KeyCode::Char('q') => break Ok(true),
-                    _ => {}
+                    KeyCode::Esc => break Ok(true),
+                    _ => {
+                        if let Some(&key) = key_mapping.get(&key.code) {
+                            emulator.keypad[key] = true;
+                        }
+                    }
                 }
             }
         }

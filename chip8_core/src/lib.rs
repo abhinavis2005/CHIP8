@@ -1,5 +1,6 @@
 use rand::Rng;
-use std::process;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
@@ -32,6 +33,10 @@ const FONT: [u8; FONT_SIZE] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
+const KEYPAD: [u8; KEYPAD_SIZE * KEYPAD_SIZE] = [
+    0x1, 0x2, 0x3, 0xC, 0x4, 0x5, 0x6, 0xD, 0x7, 0x8, 0x9, 0xE, 0xA, 0x0, 0xB, 0xF,
+];
+
 pub struct Emulator {
     pub pc: u16,
     ram: [u8; RAM_SIZE],
@@ -41,8 +46,9 @@ pub struct Emulator {
     sound_timer: u8,
     stack: [u16; STACK_SIZE],
     stack_pointer: u16,
-    pub keypad: [[bool; KEYPAD_SIZE]; KEYPAD_SIZE],
+    pub keypad: [bool; KEYPAD_SIZE * KEYPAD_SIZE],
     pub screen: [[bool; SCREEN_WIDTH]; SCREEN_HEIGHT],
+    pub verbose: bool,
 }
 
 impl Emulator {
@@ -56,8 +62,9 @@ impl Emulator {
             sound_timer: 0,
             stack: [0; STACK_SIZE],
             stack_pointer: 0,
-            keypad: [[false; KEYPAD_SIZE]; KEYPAD_SIZE],
+            keypad: [false; KEYPAD_SIZE * KEYPAD_SIZE],
             screen: [[false; SCREEN_WIDTH]; SCREEN_HEIGHT],
+            verbose: false,
         };
         emulator.ram[FONT_START..FONT_START + FONT_SIZE].copy_from_slice(&FONT);
 
@@ -268,9 +275,40 @@ impl Emulator {
                     self.v[reg] = self.ram[start_addr + reg];
                 }
             }
+            // Get key
+            (0xF, x, 0, 0xA) => {
+                let mut key_pressed = false;
+                for i in 0..KEYPAD_SIZE*KEYPAD_SIZE{
+                    if self.keypad[i] {
+                        key_pressed = true;
+                        self.v[x as usize] = KEYPAD[i] as u8;
+                        break;
+                    }
+                }
+                if !key_pressed{
+                    self.pc -= 2;
+                }
+            }
+            // Skip if key
+            (0xE, x, 9, 0xE) => {
+                let key = self.v[x as usize] as usize;
+                for i in 0..KEYPAD_SIZE*KEYPAD_SIZE{
+                    if self.keypad[i] && KEYPAD[i] as usize == key{
+                        self.pc += 2;
+                        break;
+                    }
+                } 
+            }
             //else
             (_, _, _, _) => {
-                process::exit(1);
+                if self.verbose {
+                    let mut file = OpenOptions::new()
+                        .write(true)
+                        .append(true)
+                        .open("log.txt")
+                        .unwrap();
+                    writeln!(file, "{}", op).unwrap();
+                }
             }
         }
     }
