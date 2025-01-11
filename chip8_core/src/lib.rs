@@ -7,7 +7,7 @@ pub const SCREEN_HEIGHT: usize = 32;
 pub const KEYPAD_SIZE: usize = 4;
 pub const STACK_SIZE: usize = 16;
 
-const RAM_SIZE: usize = 4096;
+const RAM_SIZE: usize = 4096*5;
 const START_ADDRESS: usize = 0x200;
 const NUM_REGISTERS: usize = 16;
 
@@ -229,7 +229,7 @@ impl Emulator {
             //shift VX one bit left
             //NOTE: it is optional to put the value of VY into VX first
             (8, x, y, 0xE) => {
-                // self.v[x as usize]=self.v[y as usize];
+                self.v[x as usize]=self.v[y as usize];
                 let bit = (self.v[x as usize] >> 7) & 1;
                 self.v[x as usize] <<= 1;
                 self.v[0xF] = bit;
@@ -247,7 +247,7 @@ impl Emulator {
             }
             //add to index
             (0xF, x, 1, 0xE) => {
-                self.I += self.I.wrapping_add(self.v[x as usize] as u16);
+                self.I = self.I.wrapping_add(self.v[x as usize] as u16);
             }
             //font character
             (0xF, x, 2, 9) => {
@@ -264,14 +264,14 @@ impl Emulator {
             //store register values into ram
             (0xF, x, 5, 5) => {
                 let start_addr = self.I as usize;
-                for reg in 0..x as usize {
+                for reg in 0..(x+1) as usize {
                     self.ram[start_addr + reg] = self.v[reg];
                 }
             }
             //load values from ram to registers
             (0xF, x, 6, 5) => {
                 let start_addr = self.I as usize;
-                for reg in 0..x as usize {
+                for reg in 0..(x+1) as usize {
                     self.v[reg] = self.ram[start_addr + reg];
                 }
             }
