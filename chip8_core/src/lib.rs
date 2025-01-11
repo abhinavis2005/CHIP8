@@ -119,7 +119,7 @@ impl Emulator {
             //add
             (7, x, _, _) => {
                 let val = (op & 0x00FF) as u8;
-                self.v[x as usize] += val;
+                (self.v[x as usize], _ )= self.v[x as usize].overflowing_add(val);
             }
             //set index
             (0xA, _, _, _) => {
@@ -325,7 +325,15 @@ impl Emulator {
     pub fn tick(&mut self) {
         let op: u16 = self.fetch();
         self.pc += 2;
-
+        if self.verbose{
+            let mut file = OpenOptions::new()
+                .write(true)
+                .append(true)
+                .create(true)
+                .open("log.txt")
+                .unwrap();
+            writeln!(file, "{:04X}", op).unwrap();
+        }
         self.execute(op);
     }
 }
