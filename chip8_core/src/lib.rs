@@ -42,8 +42,8 @@ pub struct Emulator {
     ram: [u8; RAM_SIZE],
     v: [u8; NUM_REGISTERS],
     I: u16,
-    delay_timer: u8,
-    sound_timer: u8,
+    pub delay_timer: u8,
+    pub sound_timer: u8,
     stack: [u16; STACK_SIZE],
     stack_pointer: u16,
     pub keypad: [bool; KEYPAD_SIZE * KEYPAD_SIZE],
@@ -307,6 +307,16 @@ impl Emulator {
                         break;
                     }
                 }
+            }
+            //timer opcodes
+            (0xF, x, 0, 7) => {
+                self.v[x as usize] = self.delay_timer;
+            }
+            (0xF, x, 1, 5) => {
+                self.delay_timer = self.v[x as usize];
+            }
+            (0xF, x, 1, 8) => {
+                self.sound_timer = self.v[x as usize];
             }
             //else
             (_, _, _, _) => {

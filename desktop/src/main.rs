@@ -1,6 +1,10 @@
 use chip8_core::Emulator;
 
-use std::{error::Error, io, time::Duration};
+use std::{
+    error::Error,
+    io,
+    time::{Duration, Instant},
+};
 
 use ratatui::{
     Frame, Terminal,
@@ -18,6 +22,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
+
+use rodio::{OutputStream, Sink, Source, source::SineWave};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Receiving the ROM file from argument
@@ -128,10 +134,30 @@ fn run_app<B: ratatui::backend::Backend>(
         }
     }
 
+    let tick_rate = Duration::from_millis(1000 / 60);
+    let mut current_time = Instant::now();
+
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let sink = Sink::try_new(&stream_handle).unwrap();
+
     loop {
         emulator.tick();
         terminal.draw(|f| ui(f, &emulator.screen))?;
         emulator.keypad = [false; chip8_core::KEYPAD_SIZE * chip8_core::KEYPAD_SIZE];
+
+        if current_time.elapsed() >= tick_rate {
+            if emulator.delay_timer > 0 {
+                emulator.delay_timer -= 1;
+            }
+            if emulator.sound_timer > 0 {
+                if emulator.sound_timer == 1 {
+                    sink.stop();
+                    sink.append(SineWave::new(440.0).take_duration(Duration::from_millis(100)));
+                }
+                emulator.sound_timer -= 1;
+            }
+            current_time = Instant::now();
+        }
 
         if event::poll(Duration::from_millis(1))? {
             if let Event::Key(key) = event::read()? {
