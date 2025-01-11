@@ -278,26 +278,35 @@ impl Emulator {
             // Get key
             (0xF, x, 0, 0xA) => {
                 let mut key_pressed = false;
-                for i in 0..KEYPAD_SIZE*KEYPAD_SIZE{
+                for i in 0..KEYPAD_SIZE * KEYPAD_SIZE {
                     if self.keypad[i] {
                         key_pressed = true;
                         self.v[x as usize] = KEYPAD[i] as u8;
                         break;
                     }
                 }
-                if !key_pressed{
+                if !key_pressed {
                     self.pc -= 2;
                 }
             }
             // Skip if key
             (0xE, x, 9, 0xE) => {
                 let key = self.v[x as usize] as usize;
-                for i in 0..KEYPAD_SIZE*KEYPAD_SIZE{
-                    if self.keypad[i] && KEYPAD[i] as usize == key{
+                for i in 0..KEYPAD_SIZE * KEYPAD_SIZE {
+                    if self.keypad[i] && KEYPAD[i] as usize == key {
                         self.pc += 2;
                         break;
                     }
-                } 
+                }
+            }
+            (0xE, x, 0xA, 1) => {
+                let key = self.v[x as usize] as usize;
+                for i in 0..KEYPAD_SIZE * KEYPAD_SIZE {
+                    if self.keypad[i] && KEYPAD[i] as usize != key {
+                        self.pc += 2;
+                        break;
+                    }
+                }
             }
             //else
             (_, _, _, _) => {
