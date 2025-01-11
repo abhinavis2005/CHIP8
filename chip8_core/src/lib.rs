@@ -119,7 +119,7 @@ impl Emulator {
             //add
             (7, x, _, _) => {
                 let val = (op & 0x00FF) as u8;
-                (self.v[x as usize], _ )= self.v[x as usize].overflowing_add(val);
+                (self.v[x as usize], _) = self.v[x as usize].overflowing_add(val);
             }
             //set index
             (0xA, _, _, _) => {
@@ -203,36 +203,36 @@ impl Emulator {
             (8, x, y, 4) => {
                 let (sum, carry) = self.v[x as usize].overflowing_add(self.v[y as usize]);
                 let flag = if carry { 1 } else { 0 };
-                self.v[0xF] = flag;
                 self.v[x as usize] = sum;
+                self.v[0xF] = flag;
             }
             //set VX to (VX-VY) (may underflow)
             (8, x, y, 5) => {
                 let (diff, borrow) = self.v[x as usize].overflowing_sub(self.v[y as usize]);
                 let flag = if borrow { 0 } else { 1 };
-                self.v[0xF] = flag;
                 self.v[x as usize] = diff;
+                self.v[0xF] = flag;
             }
             //set VX to (VY-VX) (may underflow)
             (8, x, y, 7) => {
                 let (diff, borrow) = self.v[y as usize].overflowing_sub(self.v[x as usize]);
                 let flag = if borrow { 0 } else { 1 };
-                self.v[0xF] = flag;
                 self.v[x as usize] = diff;
+                self.v[0xF] = flag;
             }
             //shift VX one bit right
             (8, x, y, 6) => {
                 let bit = self.v[x as usize] & 1;
-                self.v[0xF] = bit;
                 self.v[x as usize] >>= 1;
+                self.v[0xF] = bit;
             }
             //shift VX one bit left
             //NOTE: it is optional to put the value of VY into VX first
             (8, x, y, 0xE) => {
                 // self.v[x as usize]=self.v[y as usize];
                 let bit = (self.v[x as usize] >> 7) & 1;
-                self.v[0xF] = bit;
                 self.v[x as usize] <<= 1;
+                self.v[0xF] = bit;
             }
             //jump with offset
             //NOTE: the behaviour
@@ -325,7 +325,7 @@ impl Emulator {
     pub fn tick(&mut self) {
         let op: u16 = self.fetch();
         self.pc += 2;
-        if self.verbose{
+        if self.verbose {
             let mut file = OpenOptions::new()
                 .write(true)
                 .append(true)
